@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Mise en Place</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Courier+Prime:wght@400;700&display=swap">
+<style>
+/* Layout: a kitchen pass — ticket rail on top, the line below, the report as a stack of printed slips.
+   Deliberately single-theme: a stainless line under service lights. */
+:root {
+  color-scheme: dark;
+  --steel-950: #11171a;
+  --steel-900: #172024;
+  --steel-800: #1f2a2f;
+  --steel-600: #3b4a52;
+  --steel-400: #7d8f98;
+  --steel-200: #c6d1d6;
+  --fg: #eef2f3;
+  --paper: #f4f2ec;
+  --ink: #1d2124;
+  --ink-soft: #5d6467;
+  --tomato: #e4492e;
+  --flame: #f2a43a;
+  --basil: #67b96f;
+  --font-display: 'Alfa Slab One', 'Rockwell', 'Roboto Slab', Georgia, serif;
+  --font-body: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  --font-ticket: 'Courier Prime', 'Courier New', ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  background: var(--steel-950);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px 24px;
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--flame); outline-offset: 2px; }
+
+.app { max-width: 980px; margin: 0 auto; display: grid; gap: 10px; }
+
+/* ---------- pass header ---------- */
+.pass {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  border-bottom: 2px solid var(--steel-600); padding-bottom: 8px;
+}
+.brand { font-family: var(--font-display); font-size: 1.45rem; letter-spacing: 0.01em; color: var(--paper); margin: 0; line-height: 1; }
+.brand span { color: var(--tomato); }
+.hud { display: flex; gap: 16px; margin-left: auto; align-items: baseline; font-variant-numeric: tabular-nums; }
+.hud .k { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--steel-400); display: block; }
+.hud .v { font-family: var(--font-ticket); font-weight: 700; font-size: 1.05rem; }
+.hud .v.low { color: var(--tomato); }
+.iconbtn { background: var(--steel-800); border: 1px solid var(--steel-600); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.8rem; }
+
+/* ---------- ticket rail ---------- */
+.rail {
+  position: relative; min-height: 86px; display: flex; gap: 8px; align-items: flex-start;
+  padding: 10px 6px 0; overflow: hidden;
+  background: linear-gradient(var(--steel-600), var(--steel-600)) top / 100% 4px no-repeat;
+}
+.rail-empty { color: var(--steel-400); font-size: 0.85rem; padding-top: 18px; }
+.ticket {
+  flex: 0 0 auto; width: 104px; background: var(--paper); color: var(--ink);
+  font-family: var(--font-ticket); font-size: 0.72rem; line-height: 1.2;
+  padding: 7px 8px 10px; position: relative; transform-origin: top center;
+  animation: drop 260ms ease-out;
+  -webkit-mask: radial-gradient(4px at 50% 100%, #0000 98%, #000) 0 0 / 8px 100% repeat-x;
+          mask: radial-gradient(4px at 50% 100%, #0000 98%, #000) 0 0 / 8px 100% repeat-x;
+}
+.ticket::before { content: ''; position: absolute; top: -10px; left: 50%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--steel-400); }
+.ticket .no { color: var(--ink-soft); }
+.ticket .dish { font-weight: 700; font-size: 0.82rem; text-transform: uppercase; margin: 2px 0 5px; display: flex; gap: 5px; align-items: center; }
+.ticket .dots { display: flex; gap: 3px; }
+.ticket .dots i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+.ticket .bar { height: 5px; background: #ddd8cc; }
+.ticket .bar b { display: block; height: 100%; background: var(--basil); }
+.ticket.warn .bar b { background: var(--flame); }
+.ticket.crit .bar b { background: var(--tomato); }
+.ticket.crit { animation: shake 0.5s infinite; }
+@keyframes drop { from { transform: translateY(-30px) rotate(-4deg); opacity: 0; } }
+@keyframes shake { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-1.5deg); } 75% { transform: rotate(1.5deg); } }
+
+/* ---------- the line ---------- */
+.stage { position: relative; border-radius: 8px; overflow: hidden; background: var(--steel-900); border: 1px solid var(--steel-600); }
+canvas { display: block; width: 100%; touch-action: none; }
+.overlay {
+  position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
+  background: color-mix(in srgb, var(--steel-950) 82%, transparent); backdrop-filter: blur(2px);
+}
+.slip {
+  background: var(--paper); color: var(--ink); max-width: 440px; width: 100%;
+  padding: 18px 20px 22px; font-family: var(--font-body); box-shadow: 0 10px 30px #0008;
+  -webkit-mask: radial-gradient(5px at 50% 100%, #0000 98%, #000) 0 0 / 10px 100% repeat-x;
+          mask: radial-gradient(5px at 50% 100%, #0000 98%, #000) 0 0 / 10px 100% repeat-x;
+  max-height: 100%; overflow: auto;
+}
+.slip h2 { font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; line-height: 1.05; margin: 0 0 6px; text-wrap: balance; }
+.slip .meta { font-family: var(--font-ticket); font-size: 0.75rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; }
+.slip p { margin: 8px 0; font-size: 0.92rem; }
+.slip .rule { border-top: 1px dashed #b9b4a8; margin: 12px 0; }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 0.85rem; }
+.keys kbd { font-family: var(--font-ticket); font-weight: 700; background: #e5e1d6; padding: 0 5px; border-radius: 3px; white-space: nowrap; }
+.btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.btn { background: var(--tomato); color: #fff; border: 0; padding: 10px 16px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.85rem; cursor: pointer; border-radius: 3px; }
+.btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+.tally { font-family: var(--font-ticket); display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+
+/* ---------- touch pad ---------- */
+.pad { display: none; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; user-select: none; -webkit-user-select: none; }
+.pad.on { display: grid; }
+.stick { width: 132px; height: 132px; border-radius: 50%; background: var(--steel-800); border: 2px solid var(--steel-600); position: relative; touch-action: none; }
+.stick i { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px; border-radius: 50%; background: var(--steel-400); }
+.padbtn { width: 84px; height: 84px; border-radius: 50%; border: 0; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.8rem; touch-action: none; }
+.padbtn.grab { background: var(--tomato); color: #fff; }
+.padbtn.chop { background: var(--paper); color: var(--ink); }
+.padbtn:active, .padbtn.held { filter: brightness(1.2); transform: scale(0.96); }
+.hint { color: var(--steel-400); font-size: 0.8rem; }
+
+/* ---------- report ---------- */
+.report { display: grid; gap: 14px; }
+.report-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.report-head h2 { font-family: var(--font-display); font-weight: 400; font-size: 1.7rem; margin: 0; line-height: 1.05; color: var(--paper); text-wrap: balance; }
+.report-head .sub { color: var(--steel-400); font-size: 0.9rem; flex-basis: 100%; max-width: 65ch; margin: 0; }
+.seg { display: inline-flex; border: 1px solid var(--steel-600); border-radius: 6px; overflow: hidden; }
+.seg button { background: transparent; border: 0; padding: 6px 12px; cursor: pointer; font-size: 0.85rem; }
+.seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink); font-weight: 600; }
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 720px) { .cards { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--paper); color: var(--ink); padding: 14px 16px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.card .meta { font-family: var(--font-ticket); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); display: flex; justify-content: space-between; gap: 8px; }
+.card h3 { margin: 0; font-size: 1.05rem; font-weight: 700; text-wrap: balance; }
+.card .big { font-family: var(--font-display); font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.card .big small { font-family: var(--font-body); font-size: 0.85rem; color: var(--ink-soft); font-weight: 500; margin-left: 4px; }
+.card p { margin: 0; font-size: 0.86rem; color: #33393c; max-width: 65ch; }
+.pill { font-family: var(--font-ticket); font-size: 0.7rem; padding: 1px 7px; border-radius: 99px; white-space: nowrap; text-transform: none; letter-spacing: 0; }
+.pill.strong { background: var(--ink); color: var(--paper); }
+.pill.weak { background: #e3ded2; color: var(--ink); }
+.pill.none { border: 1px dashed var(--ink-soft); color: var(--ink-soft); }
+.chart { width: 100%; height: auto; display: block; }
+.chart text { font-family: var(--font-ticket); font-size: 10px; fill: var(--ink-soft); }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.75rem; color: var(--ink-soft); }
+.legend i { display: inline-block; width: 16px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 4px; }
+.foot { color: var(--steel-400); font-size: 0.82rem; max-width: 70ch; }
+.foot b { color: var(--steel-200); }
+.copied { color: var(--basil); font-size: 0.85rem; }
+textarea.export { width: 100%; height: 120px; font-family: var(--font-ticket); font-size: 0.7rem; background: var(--steel-800); color: var(--fg); border: 1px solid var(--steel-600); }
+@media (prefers-reduced-motion: reduce) { .ticket, .ticket.crit { animation: none; } }
+</style>
+
+<div class="app">
+  <header class="pass">
+    <h1 class="brand">Mise <span>en</span> Place</h1>
+    <div class="hud" id="hud">
+      <div><span class="k">Shift</span><span class="v" id="hudShift">—</span></div>
+      <div><span class="k">Clock</span><span class="v" id="hudClock">0:00</span></div>
+      <div><span class="k">Score</span><span class="v" id="hudScore">0</span></div>
+      <button class="iconbtn" id="pauseBtn" type="button" hidden>Pause</button>
+    </div>
+  </header>
+
+  <div class="rail" id="rail" aria-label="Order tickets"><div class="rail-empty">Tickets print here when service starts.</div></div>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="Kitchen"></canvas>
+
+    <div class="overlay" id="startScreen">
+      <div class="slip">
+        <div class="meta">Tonight's service · 3 shifts · about 7 minutes</div>
+        <h2>Run the pass</h2>
+        <p>Every ticket and every pot is a deadline. Chop three of one ingredient, cook it, plate it, serve it before the ticket runs out. Pots burn if you leave them.</p>
+        <p>While you cook, the kitchen quietly fits four models of how you split attention. Your report prints at close.</p>
+        <div class="rule"></div>
+        <div class="keys" id="keyHelp">
+          <kbd>WASD / arrows</kbd><span>Move</span>
+          <kbd>Space</kbd><span>Pick up, put down, cook, plate, serve</span>
+          <kbd>Hold J or E</kbd><span>Chop at a cutting board</span>
+          <kbd>P</kbd><span>Pause</span>
+        </div>
+        <div class="btnrow">
+          <button class="btn" id="startBtn" type="button">Start service</button>
+          <button class="btn ghost" id="pastBtn" type="button" hidden>Past reports</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="breakScreen" hidden>
+      <div class="slip">
+        <div class="meta" id="breakMeta">Shift closed</div>
+        <h2 id="breakTitle">Breakfast is done</h2>
+        <div class="tally" id="breakTally"></div>
+        <div class="rule"></div>
+        <p id="breakNext"></p>
+        <div class="btnrow"><button class="btn" id="nextBtn" type="button">Next shift</button></div>
+      </div>
+    </div>
+
+    <div class="overlay" id="pauseScreen" hidden>
+      <div class="slip">
+        <h2>Paused</h2>
+        <p>The clock and the pots are stopped.</p>
+        <div class="btnrow"><button class="btn" id="resumeBtn" type="button">Resume</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pad" id="pad">
+    <div class="stick" id="stick"><i id="knob"></i></div>
+    <button class="padbtn chop" id="chopBtn" type="button">Chop</button>
+    <button class="padbtn grab" id="grabBtn" type="button">Grab</button>
+  </div>
+  <div class="hint" id="hint">Face a station and press Space. Hold J to chop.</div>
+
+  <section class="report" id="report" hidden></section>
+</div>
+
+<script src="js/kitchen.js"></script>
+<script src="js/models.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const W = Kitchen.W, H = Kitchen.H, MAP = Kitchen.MAP;
+const ING = { tomato: '#e4492e', onion: '#c48ad1', mushroom: '#b8916a', mush: '#7b6d4f' };
+const C = {
+  floorA: '#253037', floorB: '#2a363d', counter: '#71828b', counterTop: '#8d9ca4', edge: '#4c5a62',
+  board: '#c39563', crate: '#7b5634', stoveOff: '#3a454c', stove: '#22292d', burner: '#4f5a60',
+  pot: '#3d474d', potRim: '#9aa8af', plate: '#f4f2ec', bin: '#4b575e', pass: '#d6b25a',
+  chef: '#f4f2ec', hat: '#ffffff', scarf: '#e4492e', basil: '#67b96f', flame: '#f2a43a', tomato: '#e4492e', ink: '#1d2124',
+};
+
+// ------------------------------------------------------------ storage
+const STORE = 'mep.sessions.v1';
+function loadSessions() { try { return JSON.parse(localStorage.getItem(STORE) || '[]'); } catch (e) { return []; } }
+function saveSession(log) {
+  try {
+    const s = loadSessions(); s.push(log);
+    localStorage.setItem(STORE, JSON.stringify(s.slice(-20)));
+  } catch (e) { /* storage unavailable: report still shows this session */ }
+}
+
+// ------------------------------------------------------------ audio
+let ac = null;
+function audio() { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } } return ac; }
+function tone(freq, dur, type = 'sine', vol = 0.15, when = 0) {
+  const a = audio(); if (!a) return;
+  const t0 = a.currentTime + when, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(a.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+}
+const SFX = {
+  ding: () => { tone(1320, 0.5); tone(1760, 0.6, 'sine', 0.1, 0.09); },
+  burnTick: () => tone(880, 0.08, 'square', 0.05),
+  burnt: () => tone(110, 0.5, 'sawtooth', 0.12),
+  serve: () => { tone(988, 0.25, 'triangle', 0.15); tone(1480, 0.4, 'triangle', 0.12, 0.08); },
+  expired: () => tone(150, 0.3, 'triangle', 0.2),
+  chopped: () => tone(520, 0.06, 'square', 0.05),
+  grab: () => tone(330, 0.04, 'triangle', 0.06),
+  order: () => { tone(2200, 0.03, 'square', 0.04); tone(2200, 0.03, 'square', 0.04, 0.06); },
+};
+
+// ------------------------------------------------------------ canvas
+const cv = $('cv'), ctx = cv.getContext('2d');
+let T = 40, DPR = 1;
+function resize() {
+  const w = document.querySelector('.app').clientWidth;
+  T = Math.max(18, Math.min(68, Math.floor(w / W)));
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = W * T * DPR; cv.height = H * T * DPR;
+  cv.style.width = W * T + 'px'; cv.style.height = H * T + 'px';
+  $('stage').style.width = W * T + 2 + 'px';
+  $('stage').style.justifySelf = 'center';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  draw();
+}
+const rr = (x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); };
+const circle = (x, y, r) => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); };
+
+function drawIng(cx, cy, r, type, chopped) {
+  ctx.fillStyle = ING[type];
+  if (!chopped) {
+    circle(cx, cy, r); ctx.fill();
+    ctx.fillStyle = '#ffffff40'; circle(cx - r * 0.35, cy - r * 0.35, r * 0.3); ctx.fill();
+    if (type === 'tomato') { ctx.fillStyle = C.basil; rr(cx - r * 0.25, cy - r * 1.05, r * 0.5, r * 0.3, 2); ctx.fill(); }
+    if (type === 'mushroom') { ctx.fillStyle = '#e8dcc8'; rr(cx - r * 0.3, cy, r * 0.6, r * 0.8, 2); ctx.fill(); }
+  } else {
+    [[-0.5, -0.3], [0.45, -0.35], [0, 0.4], [-0.45, 0.45], [0.5, 0.4]].forEach(([dx, dy]) => {
+      rr(cx + dx * r - r * 0.28, cy + dy * r - r * 0.22, r * 0.56, r * 0.44, 2); ctx.fill();
+    });
+  }
+}
+function drawPlate(cx, cy, r, soup) {
+  ctx.fillStyle = C.plate; circle(cx, cy, r); ctx.fill();
+  ctx.strokeStyle = '#c9c4b8'; ctx.lineWidth = 1; circle(cx, cy, r * 0.72); ctx.stroke();
+  if (soup) { ctx.fillStyle = ING[soup]; circle(cx, cy, r * 0.62); ctx.fill(); ctx.fillStyle = '#ffffff38'; circle(cx - r * 0.2, cy - r * 0.2, r * 0.2); ctx.fill(); }
+}
+function drawItem(it, cx, cy, s = 1) {
+  if (!it) return;
+  if (it.kind === 'ing') drawIng(cx, cy, T * 0.22 * s, it.type, it.chopped);
+  else drawPlate(cx, cy, T * 0.3 * s, it.soup);
+}
+function arc(cx, cy, r, frac, color, w) {
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, Math.min(1, frac))); ctx.stroke();
+}
+
+function drawStove(s, X, Y, now) {
+  const cx = X + T / 2, cy = Y + T / 2;
+  ctx.fillStyle = s.active ? C.stove : C.stoveOff; rr(X + 2, Y + 2, T - 4, T - 4, 4); ctx.fill();
+  if (!s.active) { ctx.strokeStyle = C.edge; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(X + 8, Y + 8); ctx.lineTo(X + T - 8, Y + T - 8); ctx.stroke(); return; }
+  const pot = s.pot;
+  const on = pot.state === 'cooking' || pot.state === 'done';
+  ctx.strokeStyle = on ? C.flame : C.burner; ctx.lineWidth = 2; circle(cx, cy, T * 0.4); ctx.stroke();
+  ctx.fillStyle = C.pot; circle(cx, cy, T * 0.33); ctx.fill();
+  ctx.strokeStyle = C.potRim; ctx.lineWidth = 2; circle(cx, cy, T * 0.33); ctx.stroke();
+  if (pot.state === 'filling' || pot.state === 'empty') {
+    pot.contents.forEach((c, i) => { const a = -Math.PI / 2 + i * (Math.PI * 2 / 3); ctx.fillStyle = ING[c]; circle(cx + Math.cos(a) * T * 0.14, cy + Math.sin(a) * T * 0.14, T * 0.09); ctx.fill(); });
+  } else if (pot.state === 'cooking') {
+    ctx.fillStyle = ING[pot.recipe]; ctx.globalAlpha = 0.5 + 0.5 * (pot.t / Kitchen.COOK); circle(cx, cy, T * 0.26); ctx.fill(); ctx.globalAlpha = 1;
+    arc(cx, cy, T * 0.44, pot.t / Kitchen.COOK, C.basil, 3);
+  } else if (pot.state === 'done') {
+    const burn = game.shift.burn, left = 1 - pot.t / burn;
+    ctx.fillStyle = ING[pot.recipe]; circle(cx, cy, T * 0.27); ctx.fill();
+    const col = left > 0.5 ? C.basil : left > 0.25 ? C.flame : C.tomato;
+    const pulse = left < 0.4 ? 0.5 + 0.5 * Math.sin(now * 14) : 1;
+    ctx.globalAlpha = pulse; arc(cx, cy, T * 0.44, left, col, 3.5); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffffcc'; ctx.font = `700 ${Math.round(T * 0.26)}px Barlow, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✓', cx, cy + 1);
+  } else if (pot.state === 'burnt') {
+    ctx.fillStyle = '#111'; circle(cx, cy, T * 0.27); ctx.fill();
+    ctx.strokeStyle = '#9aa8af80'; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) { const ph = (now * 0.8 + i / 3) % 1; ctx.globalAlpha = 1 - ph; ctx.beginPath(); ctx.arc(cx + (i - 1) * T * 0.15, cy - ph * T * 0.45, T * 0.08, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawTile(x, y, tile, now) {
+  const X = x * T, Y = y * T, ch = tile.ch;
+  if (ch === '.') { ctx.fillStyle = (x + y) % 2 ? C.floorA : C.floorB; ctx.fillRect(X, Y, T, T); return; }
+  ctx.fillStyle = C.edge; ctx.fillRect(X, Y, T, T);
+  ctx.fillStyle = C.counter; ctx.fillRect(X + 1, Y + 1, T - 2, T - 2);
+  ctx.fillStyle = C.counterTop; ctx.fillRect(X + 1, Y + 1, T - 2, 3);
+  const cx = X + T / 2, cy = Y + T / 2;
+  if (Kitchen.CRATE[ch]) {
+    ctx.fillStyle = C.crate; rr(X + 3, Y + 3, T - 6, T - 6, 3); ctx.fill();
+    ctx.strokeStyle = '#5b3f25'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(X + 4, Y + T / 2); ctx.lineTo(X + T - 4, Y + T / 2); ctx.stroke();
+    const type = Kitchen.CRATE[ch];
+    drawIng(cx - T * 0.13, cy - T * 0.06, T * 0.14, type, false);
+    drawIng(cx + T * 0.15, cy + T * 0.08, T * 0.14, type, false);
+  } else if (ch === 'B') {
+    ctx.fillStyle = C.board; rr(X + 4, Y + 6, T - 8, T - 12, 3); ctx.fill();
+    ctx.fillStyle = '#a77a4b'; circle(X + T - 9, Y + 11, 2); ctx.fill();
+  } else if (ch === 'S') {
+    drawStove(tile.stove, X, Y, now);
+  } else if (ch === 'P') {
+    for (let i = 0; i < 3; i++) drawPlate(cx, cy - i * 3 + 3, T * 0.3, null);
+  } else if (ch === 'W') {
+    ctx.fillStyle = C.pass; ctx.fillRect(X + 2, Y + 2, T - 4, T - 4);
+    ctx.fillStyle = C.ink; ctx.beginPath(); ctx.moveTo(cx - T * 0.15, cy - T * 0.2); ctx.lineTo(cx + T * 0.2, cy); ctx.lineTo(cx - T * 0.15, cy + T * 0.2); ctx.fill();
+  } else if (ch === 'X') {
+    ctx.fillStyle = C.bin; circle(cx, cy, T * 0.36); ctx.fill();
+    ctx.fillStyle = '#20282c'; circle(cx, cy, T * 0.26); ctx.fill();
+  }
+  if (tile.item) drawItem(tile.item, cx, cy);
+  if (ch === 'B' && tile.item && tile.item.kind === 'ing' && !tile.item.chopped && tile.item.prog > 0) {
+    ctx.fillStyle = '#0009'; ctx.fillRect(X + 5, Y + T - 9, T - 10, 5);
+    ctx.fillStyle = C.basil; ctx.fillRect(X + 5, Y + T - 9, (T - 10) * (tile.item.prog / Kitchen.CHOP), 5);
+  }
+}
+
+function drawChef(p, now) {
+  const cx = p.x * T, cy = p.y * T, r = T * 0.3;
+  ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(cx, cy + r * 0.85, r * 0.9, r * 0.35, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = C.chef; circle(cx, cy, r); ctx.fill();
+  ctx.strokeStyle = '#c9c4b8'; ctx.lineWidth = 1.5; circle(cx, cy, r); ctx.stroke();
+  // scarf on the facing side
+  ctx.fillStyle = C.scarf; circle(cx + p.fx * r * 0.55, cy + p.fy * r * 0.55, r * 0.32); ctx.fill();
+  ctx.fillStyle = C.hat; circle(cx - p.fx * r * 0.15, cy - p.fy * r * 0.15, r * 0.55); ctx.fill();
+  ctx.strokeStyle = '#d6d2c8'; ctx.lineWidth = 1; circle(cx - p.fx * r * 0.15, cy - p.fy * r * 0.15, r * 0.55); ctx.stroke();
+  if (p.chopping) {
+    const k = Math.sin(now * 30) * 0.5 + 0.5;
+    ctx.strokeStyle = '#d8dde0'; ctx.lineWidth = 3; ctx.beginPath();
+    ctx.moveTo(cx + p.fx * r, cy + p.fy * r - k * 4); ctx.lineTo(cx + p.fx * r * 1.6, cy + p.fy * r * 1.6 - k * 4); ctx.stroke();
+  }
+  if (p.held) drawItem(p.held, cx + p.fx * r * 1.15, cy + p.fy * r * 1.15, 0.85);
+}
+
+let toasts = [];
+function draw() {
+  if (!game) return;
+  const now = performance.now() / 1000;
+  ctx.clearRect(0, 0, W * T, H * T);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) drawTile(x, y, game.tiles[y][x], now);
+  const tg = game.target;
+  if (tg && game.phase === 'play') {
+    ctx.strokeStyle = '#ffffffd0'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
+    rr(tg.x * T + 1.5, tg.y * T + 1.5, T - 3, T - 3, 5); ctx.stroke(); ctx.setLineDash([]);
+  }
+  drawChef(game.player, now);
+  toasts = toasts.filter((t) => now - t.born < 1.1);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const t of toasts) {
+    const age = now - t.born;
+    ctx.globalAlpha = 1 - age / 1.1;
+    ctx.font = `700 ${Math.max(11, Math.round(T * 0.3))}px Barlow, sans-serif`;
+    const tx = Math.min(W * T - 60, Math.max(60, (t.x + 0.5) * T)), ty = Math.max(14, (t.y + 0.5) * T - age * 24);
+    const w = ctx.measureText(t.msg).width + 12;
+    ctx.fillStyle = t.color || '#1d2124e6'; rr(tx - w / 2, ty - 10, w, 20, 4); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(t.msg, tx, ty + 1);
+  }
+  ctx.globalAlpha = 1;
+}
+function toast(msg, x, y, color) { toasts.push({ msg, x, y, color, born: performance.now() / 1000 }); }
+
+// ------------------------------------------------------------ ticket rail
+const ticketEls = new Map();
+function syncRail() {
+  const rail = $('rail');
+  if (!game || game.phase === 'ready') return;
+  const live = new Set(game.orders.map((o) => o.id));
+  for (const [id, el] of ticketEls) if (!live.has(id)) { el.remove(); ticketEls.delete(id); }
+  const empty = rail.querySelector('.rail-empty'); if (empty) empty.remove();
+  for (const o of game.orders) {
+    let el = ticketEls.get(o.id);
+    if (!el) {
+      el = document.createElement('div'); el.className = 'ticket';
+      const col = ING[o.type];
+      el.innerHTML = `<div class="no">#${String(o.id).padStart(3, '0')} · T${1 + (o.id * 7) % 23}</div>
+        <div class="dish"><span class="dots"><i style="background:${col}"></i><i style="background:${col}"></i><i style="background:${col}"></i></span>${o.type}</div>
+        <div class="bar"><b></b></div>`;
+      rail.appendChild(el); ticketEls.set(o.id, el);
+    }
+    const left = Math.max(0, (o.deadline - game.t) / o.patience);
+    el.querySelector('.bar b').style.width = (left * 100).toFixed(1) + '%';
+    el.classList.toggle('warn', left < 0.45 && left >= 0.2);
+    el.classList.toggle('crit', left < 0.2);
+  }
+}
+function clearRail(msg) {
+  ticketEls.forEach((el) => el.remove()); ticketEls.clear();
+  $('rail').innerHTML = `<div class="rail-empty">${msg}</div>`;
+}
+
+// ------------------------------------------------------------ input
+const keys = new Set();
+let grabQueued = false, touchVec = { x: 0, y: 0 }, touchChop = false;
+const MOVE = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyP' && game && game.phase === 'play') { togglePause(); e.preventDefault(); return; }
+  if (!game || game.phase !== 'play' || paused) return;
+  if (MOVE[e.code] || e.code === 'Space') e.preventDefault();
+  if (e.code === 'Space' && !e.repeat) grabQueued = true;
+  keys.add(e.code);
+});
+window.addEventListener('keyup', (e) => keys.delete(e.code));
+window.addEventListener('blur', () => keys.clear());
+
+function readInput() {
+  let mx = touchVec.x, my = touchVec.y;
+  for (const k of keys) if (MOVE[k]) { mx += MOVE[k][0]; my += MOVE[k][1]; }
+  const inp = { mx, my, grab: grabQueued, chop: touchChop || keys.has('KeyJ') || keys.has('KeyE') };
+  grabQueued = false;
+  return inp;
+}
+
+// touch pad
+const isTouch = matchMedia('(pointer: coarse)').matches;
+if (isTouch) {
+  $('pad').classList.add('on');
+  $('hint').textContent = 'Left thumb moves. Grab picks up, puts down, cooks, plates and serves. Hold Chop at a board.';
+  $('keyHelp').innerHTML = '<kbd>Stick</kbd><span>Move</span><kbd>Grab</kbd><span>Pick up, put down, cook, plate, serve</span><kbd>Hold Chop</kbd><span>Chop at a cutting board</span>';
+}
+(function stick() {
+  const st = $('stick'), knob = $('knob'); let id = null;
+  const upd = (e) => {
+    const r = st.getBoundingClientRect();
+    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    const m = Math.hypot(dx, dy), max = r.width * 0.36;
+    if (m > max) { dx *= max / m; dy *= max / m; }
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    touchVec = { x: dx / max, y: dy / max };
+  };
+  st.addEventListener('pointerdown', (e) => { id = e.pointerId; st.setPointerCapture(id); upd(e); audio(); });
+  st.addEventListener('pointermove', (e) => { if (e.pointerId === id) upd(e); });
+  const end = (e) => { if (e.pointerId !== id) return; id = null; touchVec = { x: 0, y: 0 }; knob.style.transform = ''; };
+  st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end);
+})();
+$('grabBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); grabQueued = true; });
+const chopBtn = $('chopBtn');
+chopBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); chopBtn.setPointerCapture(e.pointerId); touchChop = true; chopBtn.classList.add('held'); });
+['pointerup', 'pointercancel'].forEach((ev) => chopBtn.addEventListener(ev, () => { touchChop = false; chopBtn.classList.remove('held'); }));
+
+// ------------------------------------------------------------ game loop
+let game = null, paused = false, last = 0, burnTickAt = {};
+const fmtClock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+function hud() {
+  if (!game || !game.shift) return;
+  $('hudShift').textContent = game.shift.name;
+  const left = Math.max(0, game.shift.dur - game.shiftT);
+  $('hudClock').textContent = fmtClock(left);
+  $('hudClock').classList.toggle('low', left < 15);
+  $('hudScore').textContent = game.score;
+}
+
+function handleEvents() {
+  for (const e of game.drainEvents()) {
+    const st = e.stove !== undefined ? game.stoves[e.stove] : null;
+    switch (e.type) {
+      case 'toast': toast(e.msg, e.x, e.y); break;
+      case 'ding': SFX.ding(); break;
+      case 'burnt': SFX.burnt(); toast('Burnt!', st.x, st.y, '#e4492ee6'); break;
+      case 'serve': SFX.serve(); toast(`+${20 + e.tip}`, 13, 3, '#3f8a47e6'); break;
+      case 'expired': SFX.expired(); toast('Ticket lost −10', 13, 3, '#e4492ee6'); break;
+      case 'chopped': SFX.chopped(); break;
+      case 'order': SFX.order(); break;
+      case 'wrong': toast('Not on the rail', 13, 3, '#e4492ee6'); break;
+      case 'shiftEnd': onShiftEnd(e); break;
+    }
+  }
+  // warning ticks for pots close to burning
+  for (const s of game.stoves) {
+    if (!s.active || s.pot.state !== 'done') continue;
+    const left = game.shift.burn - s.pot.t;
+    if (left < 3) {
+      const sec = Math.ceil(left);
+      if (burnTickAt[s.i] !== sec) { burnTickAt[s.i] = sec; SFX.burnTick(); }
+    }
+  }
+}
+
+function frame(ts) {
+  const dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts;
+  if (game && game.phase === 'play' && !paused) {
+    game.step(dt, readInput());
+    handleEvents();
+    syncRail();
+    hud();
+  }
+  draw();
+  requestAnimationFrame(frame);
+}
+
+function startGame() {
+  audio();
+  game = new Kitchen({ seed: (Math.random() * 2 ** 31) | 0 });
+  game.startShift();
+  $('startScreen').hidden = true; $('report').hidden = true;
+  $('pauseBtn').hidden = false;
+  clearRail(''); syncRail(); hud();
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+function onShiftEnd(e) {
+  $('pauseBtn').hidden = true;
+  keys.clear(); touchVec = { x: 0, y: 0 };
+  const s = e.stats;
+  clearRail(game.phase === 'done' ? 'Service closed.' : 'Between shifts.');
+  if (game.phase === 'done') return finishService();
+  const next = game.shifts[e.idx + 1];
+  $('breakMeta').textContent = `Shift ${e.idx + 1} of ${game.shifts.length} closed`;
+  $('breakTitle').textContent = `${e.name} is done`;
+  $('breakTally').innerHTML = `<span>Served</span><b>${s.served}</b><span>Tickets lost</span><b>${s.expired}</b><span>Pots burnt</span><b>${s.burnt}</b><span>Score so far</span><b>${game.score}</b>`;
+  $('breakNext').textContent = `Next: ${next.name}. A burner more (${next.stoves} total), tickets print faster, and pots burn sooner.`;
+  $('nextBtn').textContent = `Start ${next.name}`;
+  $('breakScreen').hidden = false;
+}
+$('nextBtn').addEventListener('click', () => {
+  $('breakScreen').hidden = true; $('pauseBtn').hidden = false; burnTickAt = {};
+  game.startShift(); clearRail(''); syncRail(); hud();
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+});
+function togglePause() {
+  if (!game || game.phase !== 'play') return;
+  paused = !paused; keys.clear();
+  $('pauseScreen').hidden = !paused; $('pauseBtn').textContent = paused ? 'Resume' : 'Pause';
+}
+$('pauseBtn').addEventListener('click', togglePause);
+$('resumeBtn').addEventListener('click', () => { togglePause(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); });
+$('startBtn').addEventListener('click', startGame);
+$('pastBtn').addEventListener('click', () => showReport(null));
+
+function finishService() {
+  const log = game.exportLog();
+  saveSession(log);
+  $('startScreen').hidden = false;
+  $('startBtn').textContent = 'Run another service';
+  $('pastBtn').hidden = false;
+  showReport(log);
+}
+
+// ------------------------------------------------------------ report
+function pooled(sessions) {
+  // Concatenate sessions; offset times and shift indices so events never cross sessions.
+  const out = { threads: [], actions: [], decisions: [], doneEvents: [], demandOnsets: [] };
+  sessions.forEach((s, k) => {
+    const off = k * 1e5, sh = k * 10;
+    s.threads.forEach((t) => out.threads.push(Object.assign({}, t, { shift: t.shift + sh })));
+    s.actions.forEach((a) => out.actions.push(Object.assign({}, a, { t: a.t + off, tEnd: a.tEnd + off, shift: a.shift + sh })));
+    s.decisions.forEach((d) => out.decisions.push(Object.assign({}, d)));
+    s.doneEvents.forEach((d) => out.doneEvents.push(Object.assign({}, d, { t: d.t + off, shift: d.shift + sh })));
+    s.demandOnsets.forEach((d) => out.demandOnsets.push(Object.assign({}, d, { t: d.t + off, shift: d.shift + sh })));
+  });
+  return out;
+}
+
+let reportScope = 'session', reportLog = null;
+function showReport(log) {
+  if (log) reportLog = log;
+  const all = loadSessions();
+  if (!reportLog && all.length) reportLog = all[all.length - 1];
+  if (!reportLog) return;
+  if (!log && all.length > 1) reportScope = 'all';
+  const sec = $('report');
+  sec.hidden = false;
+  sec.innerHTML = '<p class="foot">Fitting models…</p>';
+  setTimeout(() => {
+    const data = reportScope === 'all' && all.length > 1 ? pooled(all) : reportLog;
+    const res = MEPModels.analyze(data, { bootstrap: 60 });
+    renderReport(res, all.length, data);
+    sec.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  }, 30);
+}
+
+function verdict(d, favours, against, enough) {
+  if (d === undefined || d === null || !isFinite(d)) return '<span class="pill none">not enough data</span>';
+  const a = Math.abs(d), who = d > 0 ? favours : against;
+  if (!enough) return `<span class="pill none">leans ${who} · thin data</span>`;
+  if (a > 6) return `<span class="pill strong">strong: ${who}</span>`;
+  if (a > 2) return `<span class="pill weak">positive: ${who}</span>`;
+  return '<span class="pill none">can’t tell yet</span>';
+}
+const f1 = (x) => (isFinite(x) ? x.toFixed(1) : '—');
+const f2 = (x) => (isFinite(x) ? x.toFixed(2) : '—');
+
+// small SVG chart helper
+function svgChart({ w = 320, h = 170, xmin, xmax, ymin, ymax, xlab, ylab, xticks, yticks, body }) {
+  const L = 34, R = 8, Tp = 8, B = 28;
+  const X = (v) => L + ((v - xmin) / (xmax - xmin)) * (w - L - R);
+  const Y = (v) => h - B - ((v - ymin) / (ymax - ymin)) * (h - Tp - B);
+  let s = `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img">`;
+  for (const t of yticks) s += `<line x1="${L}" x2="${w - R}" y1="${Y(t)}" y2="${Y(t)}" stroke="#d9d4c8" stroke-width="1"/><text x="${L - 4}" y="${Y(t) + 3}" text-anchor="end">${t}</text>`;
+  for (const t of xticks) s += `<text x="${X(t)}" y="${h - B + 13}" text-anchor="middle">${t}</text>`;
+  s += `<line x1="${L}" x2="${w - R}" y1="${h - B}" y2="${h - B}" stroke="#8c877c" stroke-width="1"/>`;
+  s += `<text x="${(L + w - R) / 2}" y="${h - 3}" text-anchor="middle">${xlab}</text>`;
+  s += `<text x="10" y="${(Tp + h - B) / 2}" text-anchor="middle" transform="rotate(-90 10 ${(Tp + h - B) / 2})">${ylab}</text>`;
+  s += body(X, Y);
+  return s + '</svg>';
+}
+const path = (pts) => 'M' + pts.map((p) => p.map((v) => v.toFixed(1)).join(',')).join('L');
+
+function capacityChart(c) {
+  const xmax = Math.max(8, Math.ceil(c.loadRange ? c.loadRange[1] + 1 : 8));
+  const xs = Array.from({ length: 120 }, (_, i) => 1 + (i / 119) * (xmax - 1));
+  const potShare = c.n ? 0.45 : 0.5;
+  return svgChart({
+    xmin: 1, xmax, ymin: 0, ymax: 1, xlab: 'deadlines open at once (load)', ylab: 'met in time',
+    xticks: Array.from({ length: xmax }, (_, i) => i + 1).filter((v) => v % (xmax > 10 ? 2 : 1) === 0), yticks: [0, 0.5, 1],
+    body: (X, Y) => {
+      let s = '';
+      if (c.slot) {
+        const lam = potShare * c.slot.lapsePot + (1 - potShare) * c.slot.lapseOrder;
+        const lamR = potShare * c.resource.lapsePot + (1 - potShare) * c.resource.lapseOrder;
+        s += `<path d="${path(xs.map((x) => [X(x), Y(MEPModels.resourceP(x, c.resource.N50, c.resource.beta, lamR))]))}" fill="none" stroke="#6b7478" stroke-width="2" stroke-dasharray="5 4"/>`;
+        s += `<path d="${path(xs.map((x) => [X(x), Y(MEPModels.slotP(x, c.slot.K, c.slot.g, lam))]))}" fill="none" stroke="#e4492e" stroke-width="2.5"/>`;
+        if (c.slot.K < xmax) s += `<line x1="${X(c.slot.K)}" x2="${X(c.slot.K)}" y1="${Y(1)}" y2="${Y(0)}" stroke="#e4492e" stroke-width="1" stroke-dasharray="2 3"/><text x="${X(c.slot.K) + 4}" y="${Y(0.06)}" fill="#e4492e" style="fill:#e4492e">K</text>`;
+      }
+      for (const b of c.bins) s += `<circle cx="${X(b.N)}" cy="${Y(b.p)}" r="${2.5 + Math.sqrt(b.n) * 1.3}" fill="#1d2124" fill-opacity="0.75"/>`;
+      return s;
+    },
+  }) + '<div class="legend"><span><i style="border-color:#e4492e"></i>slot model</span><span><i style="border-color:#6b7478;border-top-style:dashed"></i>resource model</span><span>● share met, sized by count</span></div>';
+}
+function attentionChart(a) {
+  const xs = Array.from({ length: 100 }, (_, i) => (i / 99) * 8);
+  return svgChart({
+    xmin: 0, xmax: 8, ymin: 1, ymax: 2, xlab: 'distance from last stove you worked (tiles)', ylab: 'attentional gain',
+    xticks: [0, 2, 4, 6, 8], yticks: [1, 1.5, 2],
+    body: (X, Y) => {
+      let s = '';
+      if (a.normalized) s += `<path d="${path(xs.map((x) => [X(x), Y(MEPModels.field(x, a.normalized.omega))]))}" fill="none" stroke="#e4492e" stroke-width="2.5"/>`;
+      if (a.unnormalized) s += `<path d="${path(xs.map((x) => [X(x), Y(MEPModels.field(x, a.unnormalized.omega))]))}" fill="none" stroke="#6b7478" stroke-width="2" stroke-dasharray="5 4"/>`;
+      return s;
+    },
+  }) + '<div class="legend"><span><i style="border-color:#e4492e"></i>with divisive normalization</span><span><i style="border-color:#6b7478;border-top-style:dashed"></i>without</span></div>';
+}
+function switchChart(s) {
+  const rng = MEPModels.mulberry32(5);
+  return svgChart({
+    h: 120, xmin: 0, xmax: 3, ymin: 0, ymax: 2, xlab: 'time to get moving after an action (s)', ylab: '',
+    xticks: [0, 1, 2, 3], yticks: [],
+    body: (X, Y) => {
+      let out = '';
+      [['repeat', s.repeat, 1.45, '#6b7478', 'same pot'], ['switch', s.switch, 0.55, '#e4492e', 'new pot']].forEach(([k, arr, y, col, lab]) => {
+        (arr || []).forEach((v) => { out += `<circle cx="${X(Math.min(3, v))}" cy="${Y(y) + (rng() - 0.5) * 16}" r="2.2" fill="${col}" fill-opacity="0.45"/>`; });
+        const m = k === 'repeat' ? s.repeatMedian : s.switchMedian;
+        if (isFinite(m)) out += `<line x1="${X(m)}" x2="${X(m)}" y1="${Y(y) - 12}" y2="${Y(y) + 12}" stroke="#1d2124" stroke-width="2.5"/>`;
+        out += `<text x="${X(3)}" y="${Y(y) - 13}" text-anchor="end">${lab}</text>`;
+      });
+      return out;
+    },
+  });
+}
+function prpChart(q) {
+  const ymax = Math.max(4, Math.ceil(Math.max(...q.points.map((p) => p.rt), 0)));
+  const xmax = Math.max(8, Math.ceil(Math.min(20, Math.max(...q.points.map((p) => p.soa), 0))));
+  return svgChart({
+    xmin: 0, xmax, ymin: 0, ymax, xlab: 'time since previous demand (SOA, s)', ylab: 'response to the ding (s)',
+    xticks: Array.from({ length: Math.floor(xmax / 2) + 1 }, (_, i) => i * 2), yticks: Array.from({ length: Math.floor(ymax / 2) + 1 }, (_, i) => i * 2),
+    body: (X, Y) => {
+      let s = '';
+      for (const p of q.points) s += `<circle cx="${X(Math.min(xmax, p.soa))}" cy="${Y(Math.min(ymax, p.rt))}" r="3" fill="#1d2124" fill-opacity="0.6"/>`;
+      if (q.bottleneck) {
+        const b = q.bottleneck;
+        s += `<line x1="${X(0)}" x2="${X(xmax)}" y1="${Y(q.flat.a)}" y2="${Y(q.flat.a)}" stroke="#6b7478" stroke-width="2" stroke-dasharray="5 4"/>`;
+        s += `<path d="${path([[X(0), Y(Math.min(ymax, b.a + b.B))], [X(Math.min(xmax, b.B)), Y(b.a)], [X(xmax), Y(b.a)]])}" fill="none" stroke="#e4492e" stroke-width="2.5"/>`;
+      }
+      return s;
+    },
+  }) + '<div class="legend"><span><i style="border-color:#e4492e"></i>central bottleneck</span><span><i style="border-color:#6b7478;border-top-style:dashed"></i>no bottleneck</span></div>';
+}
+
+function renderReport(r, nSessions, data) {
+  const c = r.capacity, a = r.attention, s = r.switching, q = r.prp;
+  const scopeAll = reportScope === 'all' && nSessions > 1;
+  const kTxt = c.slot ? (c.slot.K >= (c.loadRange[1] - 0.05) ? `&gt;${f1(c.loadRange[1])}` : f1(c.slot.K)) : '—';
+  const kCi = c.slot && c.slot.K_ci && c.slot.K < c.loadRange[1] - 0.05 ? `· 80% CI ${f1(c.slot.K_ci[0])}–${f1(c.slot.K_ci[1])}` : '';
+  const kAbove = c.slot && c.slot.K >= c.loadRange[1] - 0.05;
+  const capCopy = !c.slot ? 'Not enough deadlines resolved to fit yet.'
+    : kAbove ? `Performance never broke down within the loads you reached (up to ${f1(c.loadRange[1])} open at once). Your capacity sits above that; a busier service would find the knee.`
+    : c.deltaBIC < -2 ? `Misses grew smoothly with every added deadline rather than holding steady and then falling off, which is what a shared resource predicts. The slot fit puts the knee near ${f1(c.slot.K)}.`
+    : `Up to about ${f1(c.slot.K)} open deadlines you met them at ceiling; past that, misses scale with load the way a fixed number of slots predicts. The resource model instead spreads one pool more thinly with every new deadline.`;
+  let attCopy = 'Needs moments where you chose between two or more stoves.';
+  if (a.normalized) {
+    const fieldTxt = a.deltaBIC_field > 2
+      ? `Pots near the last stove you worked pulled harder: field width ω = ${f1(a.normalized.omega)} tiles.`
+      : 'Where you had just been working made little difference to which pot you went to next.';
+    const normTxt = a.deltaBIC_norm > 2
+      ? `Divisive normalization improved the fit: about ${Math.round(a.normalizationIndex * 100)}% of each pot's pull was divided away by the others on the line, so crowded lines flattened your triage.`
+      : a.deltaBIC_norm < -2
+        ? 'Divisive normalization didn’t earn its extra parameter: your triage stayed about as sharp on a crowded line as on a quiet one.'
+        : 'The data can’t yet tell whether a crowded line flattened your triage (normalization) or not.';
+    attCopy = `${fieldTxt} ${normTxt} You went to the most urgent pot ${Math.round(a.mostUrgentRate * 100)}% of the time.`;
+  }
+  const swCopy = s.cost === undefined ? 'Needs more back-to-back actions for the same pot and for different pots.'
+    : `Median ${Math.round(s.switchMedian * 1000)} ms to get moving when your next action served a different pot, vs ${Math.round(s.repeatMedian * 1000)} ms for the same pot (95% CI ${Math.round(s.ci[0] * 1000)} to ${Math.round(s.ci[1] * 1000)} ms).`;
+  const prpCopy = !q.bottleneck ? 'Needs more pots that finished soon after something else came up.'
+    : q.deltaBIC > 2 ? `When a pot dinged within ${f1(q.bottleneck.B)} s of the previous demand, your response slowed roughly one-for-one with the overlap: the signature of a central stage that can’t take a second job until the first clears. Baseline response ${f1(q.bottleneck.a)} s.`
+    : `No reliable bottleneck: how fast you answered a ding didn’t depend on how recently the previous demand arrived. Typical response ${f1(q.flat.a)} s.`;
+  const swPill = s.cost === undefined ? '<span class="pill none">not enough data</span>'
+    : (s.ci[0] > 0 ? '<span class="pill strong">reliable cost</span>' : s.ci[1] < 0 ? '<span class="pill weak">switching faster</span>' : '<span class="pill none">CI spans zero</span>');
+  const tot = data.threads.length;
+  const sec = $('report');
+  sec.innerHTML = `
+    <div class="report-head">
+      <h2>Back-of-house report</h2>
+      ${nSessions > 1 ? `<div class="seg" role="group" aria-label="Data scope"><button type="button" data-scope="session" aria-pressed="${!scopeAll}">This service</button><button type="button" data-scope="all" aria-pressed="${scopeAll}">All ${nSessions} services</button></div>` : ''}
+      <p class="sub">${scopeAll ? `Pooled across ${nSessions} services` : 'One service'}: ${tot} deadlines resolved, ${a.n} stove choices, ${s.nRepeat + s.nSwitch} timed actions, ${q.n} pot dings. Each panel fits two or more models by maximum likelihood and compares them with BIC (ΔBIC &gt; 2 positive, &gt; 6 strong).</p>
+    </div>
+    <div class="cards">
+      <article class="card">
+        <div class="meta"><span>Capacity · slot vs resource</span>${verdict(c.deltaBIC, 'slots', 'resource', c.enough && c.n >= 60)}</div>
+        <h3>Deadlines you can hold at once</h3>
+        <div class="big">${kTxt}<small>${c.slot ? 'slots (K)' : ''} ${kCi}</small></div>
+        ${c.bins.length ? capacityChart(c) : ''}
+        <p>${capCopy}</p>
+      </article>
+      <article class="card">
+        <div class="meta"><span>Normalization of attention</span>${verdict(a.deltaBIC_norm, 'normalized', 'unnormalized', a.enough && a.n >= 40)}</div>
+        <h3>How triage spreads across the line</h3>
+        <div class="big">${a.normalized ? f1(a.normalized.omega) : '—'}<small>${a.normalized ? 'tiles, field width ω' : ''}</small></div>
+        ${a.normalized ? attentionChart(a) : ''}
+        <p>${attCopy}</p>
+        ${a.normalized ? `<p>Spatial field vs urgency alone: ${verdict(a.deltaBIC_field, 'field', 'urgency only', a.enough)}</p>` : ''}
+      </article>
+      <article class="card">
+        <div class="meta"><span>Voluntary task switching</span>${swPill}</div>
+        <h3>Cost of changing which pot you're working for</h3>
+        <div class="big">${s.cost !== undefined ? (s.cost >= 0 ? '+' : '−') + Math.abs(Math.round(s.cost * 1000)) : '—'}<small>${s.cost !== undefined ? 'ms switch cost' : ''}</small></div>
+        ${s.cost !== undefined ? switchChart(s) : ''}
+        <p>${swCopy}</p>
+      </article>
+      <article class="card">
+        <div class="meta"><span>PRP · central bottleneck</span>${verdict(q.deltaBIC, 'bottleneck', 'no bottleneck', q.enough)}</div>
+        <h3>Answering a ding while still busy</h3>
+        <div class="big">${q.bottleneck ? (q.deltaBIC > 2 ? f1(q.bottleneck.B) : f1(q.flat.a)) : '—'}<small>${q.bottleneck ? (q.deltaBIC > 2 ? 's bottleneck (B)' : 's typical response') : ''}</small></div>
+        ${q.n >= 5 ? prpChart(q) : ''}
+        <p>${prpCopy}</p>
+      </article>
+    </div>
+    <p class="foot"><b>Reading this.</b> One service gives a usable K and bottleneck estimate. The slot-vs-resource and normalization comparisons need about three services pooled before they reliably pick the generating model (parameter-recovery tests on simulated players). Loads come from the number of tickets and pots open while each deadline ran; stove choices are scored against each pot's urgency and its distance from where you last worked.</p>
+    <div class="btnrow"><button class="btn" type="button" id="copyBtn">Copy results JSON</button><button class="btn ghost" type="button" id="againBtn" style="color:var(--paper);border-color:var(--paper)">Run another service</button><span class="copied" id="copied" hidden>Copied</span></div>
+    <textarea class="export" id="exportBox" hidden readonly aria-label="Results JSON"></textarea>`;
+  sec.querySelectorAll('[data-scope]').forEach((b) => b.addEventListener('click', () => { reportScope = b.dataset.scope; showReport(null); }));
+  $('againBtn').addEventListener('click', () => { window.scrollTo({ top: 0 }); startGame(); });
+  $('copyBtn').addEventListener('click', () => {
+    const strip = (o) => JSON.parse(JSON.stringify(o, (k, v) => (k === 'raw' || k === 'points' || k === 'repeat' || k === 'switch' ? undefined : v)));
+    const payload = JSON.stringify({ app: 'mise-en-place', version: 1, scope: scopeAll ? 'pooled' : 'session', fits: strip(r), sessions: scopeAll ? loadSessions() : [reportLog] });
+    const box = $('exportBox');
+    const fallback = () => { box.hidden = false; box.value = payload; box.select(); };
+    try {
+      navigator.clipboard.writeText(payload).then(() => { $('copied').hidden = false; setTimeout(() => { $('copied').hidden = true; }, 1600); }, fallback);
+    } catch (e) { fallback(); }
+  });
+}
+
+// ------------------------------------------------------------ boot
+game = new Kitchen({ seed: 1 });
+game.stoves.forEach((s, i) => { s.active = i < 2; });
+game.shiftIdx = 0; // for drawing the idle kitchen only
+if (loadSessions().length) $('pastBtn').hidden = false;
+window.addEventListener('resize', resize);
+resize();
+requestAnimationFrame(frame);
+window.__mep = { get game() { return game; } };
+})();
+</script>
+
+</body>
+</html>
